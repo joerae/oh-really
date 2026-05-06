@@ -1,145 +1,223 @@
-import React, { useState } from "react";
-import { AlertTriangle, Loader2, RefreshCw, Send, Sparkles } from "lucide-react";
-import { generateText } from "./services/apiClient";
-import { logClientError } from "./services/errorLogger";
+import React, { useState, useEffect } from 'react';
+import { Search, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { checkClaim } from './services/geminiService';
+import { AnalysisResponse } from './types';
+import ResultCard from './components/ResultCard';
 
-type RequestStatus = "idle" | "loading" | "success" | "error";
-
-const DEFAULT_PROMPT =
-  "Create a concise launch checklist for moving a Google AI Studio React app to Netlify.";
-
-function App() {
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
-  const [output, setOutput] = useState("");
-  const [status, setStatus] = useState<RequestStatus>("idle");
+const App: React.FC = () => {
+  const [claim, setClaim] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
-  const isLoading = status === "loading";
-  const canSubmit = prompt.trim().length > 0 && !isLoading;
+  // Version history data
+  const versions = [
+    { version: '1.0', desc: 'Initial release of Oh Really???' },
+    { version: '1.1', desc: 'Added charitable interpretation to claim analysis' },
+    { version: '1.2', desc: 'Implemented clickable source links and fallback search' },
+    { version: '1.3', desc: 'Added 60s progress bar for deep research' },
+    { version: '1.4', desc: 'Redesigned skepticism meter and result layout' },
+    { version: '1.5', desc: 'Added footer credits and version tracker' },
+  ];
 
-  const handleGenerate = async () => {
-    if (!canSubmit) return;
+  const handleCheck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claim.trim()) return;
 
-    setStatus("loading");
+    setLoading(true);
     setError(null);
+    setResult(null);
+    setProgress(0);
 
     try {
-      const result = await generateText({
-        prompt,
-        systemInstruction:
-          "You are a concise product engineer. Give practical, implementation-ready answers.",
-        temperature: 0.4,
-      });
-
-      setOutput(result.text);
-      setStatus("success");
+      const data = await checkClaim(claim);
+      setResult(data);
     } catch (err) {
-      logClientError(err, {
-        source: "handleGenerate",
-        metadata: {
-          promptLength: prompt.length,
-        },
-      });
-
-      setError(err instanceof Error ? err.message : "Generation failed.");
-      setStatus("error");
+      setError("Oops! My research brain got a bit scrambled. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReset = () => {
-    setPrompt(DEFAULT_PROMPT);
-    setOutput("");
-    setError(null);
-    setStatus("idle");
-  };
+  const loadingMessages = [
+    "Rumaging through the internet...",
+    "Interrogating search engines...",
+    "Putting on my reading glasses...",
+    "Fact-checking at light speed...",
+    "Separating truth from fiction...",
+    "Consulting the archives of knowledge...",
+    "Double-checking the sources...",
+    "Analyzing context and nuance..."
+  ];
+  const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
+
+  // Loading animation logic
+  useEffect(() => {
+    let msgInterval: number;
+    let progressInterval: number;
+
+    if (loading) {
+      // Rotate messages
+      msgInterval = window.setInterval(() => {
+        setLoadingMsg(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
+      }, 3000);
+
+      // Progress bar animation (target ~60s to 95%)
+      setProgress(0);
+      progressInterval = window.setInterval(() => {
+        setProgress(prev => {
+           // Slow down as we get closer to 95%
+           // Initial jump is faster
+           const target = 95;
+           const distance = target - prev;
+           // If we have a lot of distance, move faster (0.3). If close, move slower (0.05).
+           // This curve ensures it takes roughly a minute to get really high.
+           const increment = Math.max(0.05, distance * 0.008); 
+           return Math.min(prev + increment, 95);
+        });
+      }, 100);
+
+    } else {
+      // If done, jump to 100 (though user might not see it if component unmounts/swaps)
+      setProgress(100);
+    }
+
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(progressInterval);
+    };
+  }, [loading]);
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] px-4 py-6 text-zinc-950 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-emerald-700 text-white shadow-sm">
-              <Sparkles className="h-5 w-5" aria-hidden="true" />
+    <div className="min-h-screen flex flex-col bg-gray-50/50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 py-6 sticky top-0 z-50 bg-opacity-90 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => {setResult(null); setClaim('');}}>
+            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center shadow-lg transform -rotate-3">
+              <span className="text-white font-bold text-xl">?!</span>
             </div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
-                AI Studio Netlify Template
-              </h1>
-              <p className="mt-1 text-sm text-zinc-600">
-                Vite, React, Gemini, and Netlify Functions
+            <h1 className="text-2xl font-black text-gray-800 tracking-tight">Oh Really???</h1>
+          </div>
+          <div className="text-sm font-medium text-gray-500 hidden sm:block">
+            Your friendly skeptical fact-checker
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-4xl mx-auto px-4 w-full py-8">
+        
+        {/* Search Input Section */}
+        <div className={`transition-all duration-500 ease-in-out ${result ? 'mb-8' : 'min-h-[60vh] flex flex-col justify-center'}`}>
+          
+          {!result && (
+            <div className="text-center mb-10 space-y-4 animate-fade-in-down">
+              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900">
+                Heard something <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">wild?</span>
+              </h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                Type in a claim, rumor, or factoid. I'll scour the web to see if it holds water or if it's total nonsense.
               </p>
             </div>
-          </div>
-          <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm">
-            Gemini runs server-side
-          </div>
-        </header>
+          )}
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-              <h2 className="text-base font-semibold">Prompt</h2>
-              <span className="text-xs tabular-nums text-zinc-500">{prompt.length} chars</span>
-            </div>
-            <div className="flex flex-col gap-4 p-4">
-              <textarea
-                value={prompt}
-                onChange={event => setPrompt(event.target.value)}
-                className="min-h-[360px] resize-y rounded-md border border-zinc-300 bg-white p-3 text-sm leading-6 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Enter a prompt for Gemini"
+          <form onSubmit={handleCheck} className="relative max-w-2xl mx-auto w-full group">
+            <div className="absolute inset-0 bg-purple-200 rounded-2xl blur opacity-30 group-hover:opacity-50 transition-opacity duration-300"></div>
+            <div className="relative flex items-center bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-transparent focus-within:border-purple-500 transition-colors duration-300">
+              <input
+                type="text"
+                value={claim}
+                onChange={(e) => setClaim(e.target.value)}
+                placeholder="e.g., 'Do octopuses actually have three hearts?'"
+                className="flex-1 px-6 py-5 text-lg text-gray-800 placeholder-gray-400 focus:outline-none"
+                disabled={loading}
               />
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={!canSubmit}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  Generate
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
-                >
-                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                  Reset
-                </button>
+              <button
+                type="submit"
+                disabled={loading || !claim.trim()}
+                className="mr-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl font-bold text-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform active:scale-95"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin w-5 h-5" />
+                ) : (
+                  <>
+                    <span>Check it!</span>
+                    <Sparkles className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {loading && (
+            <div className="mt-8 max-w-xl mx-auto text-center space-y-3 animate-fade-in">
+              <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-linear"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-purple-700">
+                <span>Researching...</span>
+                <span>{Math.floor(progress)}%</span>
+              </div>
+              <div className="h-6 overflow-hidden">
+                <p className="text-gray-500 italic text-sm">{loadingMsg}</p>
               </div>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-              <h2 className="text-base font-semibold">Response</h2>
-              <span className="text-xs uppercase tracking-wide text-zinc-500">{status}</span>
-            </div>
-            <div className="min-h-[456px] p-4">
-              {error ? (
-                <div className="flex gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  <p>{error}</p>
-                </div>
-              ) : output ? (
-                <pre className="whitespace-pre-wrap rounded-md bg-zinc-950 p-4 text-sm leading-6 text-zinc-50">
-                  {output}
-                </pre>
-              ) : (
-                <div className="grid min-h-[424px] place-items-center rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-6 text-center text-sm text-zinc-500">
-                  Output appears here after a successful request.
-                </div>
-              )}
+        {/* Error Message */}
+        {error && (
+          <div className="max-w-2xl mx-auto mb-8 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-800 animate-fade-in">
+            <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Error</p>
+              <p>{error}</p>
             </div>
           </div>
-        </section>
-      </div>
-    </main>
+        )}
+
+        {/* Results */}
+        {result && (
+          <ResultCard data={result} />
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="py-8 text-center text-gray-500 text-sm border-t border-gray-200 mt-auto bg-white/80 backdrop-blur-sm">
+        <p className="font-semibold mb-1 text-gray-700">Made by John Raeburns VII and IX, 2025</p>
+        <p className="text-xs text-gray-400 mb-4">Powered by Gemini 2.5 & Google Search Grounding</p>
+        
+        <div className="flex flex-col items-center">
+            <button 
+                onClick={() => setShowVersionHistory(!showVersionHistory)}
+                className="text-xs text-purple-500 hover:text-purple-700 font-medium hover:underline transition-colors mb-2 focus:outline-none"
+            >
+                {showVersionHistory ? 'Hide Version History' : 'Show Version History'}
+            </button>
+
+            {showVersionHistory && (
+                <div className="w-full max-w-md bg-white border border-gray-100 rounded-xl shadow-lg p-5 text-left mx-4 transform transition-all duration-300 ease-out">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">Update Log</h4>
+                    <div className="space-y-3">
+                        {[...versions].reverse().map((ver, idx) => (
+                            <div key={idx} className="flex gap-3 text-xs items-start">
+                                <span className="font-mono font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded shrink-0">v{ver.version}</span>
+                                <span className="text-gray-600 leading-tight py-0.5">{ver.desc}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+      </footer>
+    </div>
   );
-}
+};
 
 export default App;

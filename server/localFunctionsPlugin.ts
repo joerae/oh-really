@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
+import { checkClaimWithGeminiServer } from "./factCheck";
 import { generateWithGeminiServer } from "./gemini";
 import { createRequestId, logError, logInfo, logWarn } from "./logger";
 
@@ -49,9 +50,68 @@ export const createLocalFunctionsPlugin = ({
   apiKey,
 }: LocalFunctionsPluginOptions = {}): Plugin => ({
   name: "local-netlify-functions",
+  enforce: "pre",
   configureServer(server) {
     server.middlewares.use(async (request, response, next) => {
       const pathname = request.url?.split("?")[0];
+
+      if (pathname === "/.netlify/functions/check-claim") {
+        const requestId = createRequestId();
+        const startedAt = Date.now();
+
+        if (request.method !== "POST") {
+          logWarn("check_claim_method_not_allowed", {
+            requestId,
+            method: request.method,
+            runtime: "vite-dev",
+          });
+          sendJson(response, 405, { error: "Method not allowed.", requestId });
+          return;
+        }
+
+        try {
+          const body = await readJsonBody(request);
+          const claim = typeof body.claim === "string" ? body.claim : "";
+
+          if (!claim.trim()) {
+            sendJson(response, 400, { error: "Claim is required.", requestId });
+            return;
+          }
+
+          logInfo("check_claim_started", {
+            requestId,
+            claimLength: claim.length,
+            runtime: "vite-dev",
+          });
+
+          const result = await checkClaimWithGeminiServer({
+            apiKey,
+            claim,
+          });
+
+          logInfo("check_claim_completed", {
+            requestId,
+            durationMs: Date.now() - startedAt,
+            runtime: "vite-dev",
+          });
+
+          sendJson(response, 200, { ...result, requestId });
+        } catch (error) {
+          logError("check_claim_failed", {
+            requestId,
+            durationMs: Date.now() - startedAt,
+            runtime: "vite-dev",
+            error,
+          });
+
+          sendJson(response, 500, {
+            error: "Fact check failed. Please try again later.",
+            requestId,
+          });
+        }
+
+        return;
+      }
 
       if (pathname === "/.netlify/functions/generate") {
         const requestId = createRequestId();
