@@ -1,0 +1,6 @@
+{
+  "name": "AI Studio Netlify Template",
+  "description": "A reusable Vite React starter for moving Google AI Studio apps to Netlify with server-side Gemini calls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
