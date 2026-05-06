@@ -1,4 +1,5 @@
-import { checkClaimWithGeminiServer } from "../../server/factCheck";
+import { checkClaimWithGeminiServer, DEFAULT_FACT_CHECK_MODEL } from "../../server/factCheck";
+import { toPublicGeminiError } from "../../server/geminiError";
 import { createRequestId, logError, logInfo, logWarn } from "../../server/logger";
 
 const jsonResponse = (statusCode: number, body: Record<string, unknown>) => ({
@@ -46,6 +47,10 @@ export const handler = async (event: any, context: any) => {
   }
 
   const claim = typeof body.claim === "string" ? body.claim : "";
+  const allowSearchGrounding =
+    process.env.ENABLE_SEARCH_GROUNDING === "true" ||
+    process.env.VITE_ENABLE_SEARCH_GROUNDING === "true";
+  const useSearchGrounding = allowSearchGrounding && body.useSearchGrounding === true;
   if (!claim.trim()) {
     return jsonResponse(400, {
       error: "Claim is required.",
@@ -54,9 +59,13 @@ export const handler = async (event: any, context: any) => {
   }
 
   try {
+    const model = process.env.GEMINI_MODEL || DEFAULT_FACT_CHECK_MODEL;
+
     logInfo("check_claim_started", {
       requestId,
       claimLength: claim.length,
+      model,
+      useSearchGrounding,
       deployContext: process.env.CONTEXT,
       siteName: process.env.SITE_NAME,
     });
@@ -64,6 +73,8 @@ export const handler = async (event: any, context: any) => {
     const result = await checkClaimWithGeminiServer({
       apiKey: process.env.GEMINI_API_KEY,
       claim,
+      model,
+      useSearchGrounding,
     });
 
     logInfo("check_claim_completed", {
@@ -76,14 +87,20 @@ export const handler = async (event: any, context: any) => {
       requestId,
     });
   } catch (error) {
+    const model = process.env.GEMINI_MODEL || DEFAULT_FACT_CHECK_MODEL;
+    const publicError = toPublicGeminiError(error, model);
     logError("check_claim_failed", {
       requestId,
       durationMs: Date.now() - startedAt,
+      model,
+      useSearchGrounding,
+      publicError: publicError.payload,
       error,
     });
 
-    return jsonResponse(500, {
-      error: "Fact check failed. Please try again later.",
+    return jsonResponse(publicError.statusCode, {
+      ...publicError.payload,
+      useSearchGrounding,
       requestId,
     });
   }

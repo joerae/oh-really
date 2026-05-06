@@ -69,3 +69,7 @@ Client code for it lives in `services/apiClient.ts`, Netlify production code liv
 Run the app with Vite. Do not open `index.html` directly and do not use a static file server for development.
 
 This template leaves the Tailwind CDN in `index.html` because AI Studio exports often use Tailwind utility classes. If a future app needs a stricter production CSS pipeline, replace it with a normal Tailwind/PostCSS setup.
+
+## Version Tracker Convention
+
+When making a significant user-facing behavior, UI, API, or deployment change, bump the in-app version tracker in `App.tsx` and add a short note describing the change.

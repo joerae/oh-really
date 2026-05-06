@@ -116,6 +116,17 @@ const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
             </ul>
         </div>
       )}
+      {(data.model || data.requestId) && (
+        <div className="text-center text-xs text-gray-400 font-mono">
+          {[
+            data.model ? `model: ${data.model}` : "",
+            `search: ${data.useSearchGrounding === false ? "off" : "on"}`,
+            data.requestId ? `request: ${data.requestId}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ")}
+        </div>
+      )}
     </div>
   );
 };

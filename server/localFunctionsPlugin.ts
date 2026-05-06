@@ -1,11 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import { checkClaimWithGeminiServer } from "./factCheck";
+import { checkClaimWithGeminiServer, DEFAULT_FACT_CHECK_MODEL } from "./factCheck";
+import { toPublicGeminiError } from "./geminiError";
 import { generateWithGeminiServer } from "./gemini";
 import { createRequestId, logError, logInfo, logWarn } from "./logger";
 
 interface LocalFunctionsPluginOptions {
   apiKey?: string;
+  model?: string;
+  allowSearchGrounding?: boolean;
 }
 
 const MAX_BODY_SIZE = 1_000_000;
@@ -48,6 +51,8 @@ const sendJson = (response: ServerResponse, statusCode: number, payload: Record<
 
 export const createLocalFunctionsPlugin = ({
   apiKey,
+  model = DEFAULT_FACT_CHECK_MODEL,
+  allowSearchGrounding = false,
 }: LocalFunctionsPluginOptions = {}): Plugin => ({
   name: "local-netlify-functions",
   enforce: "pre",
@@ -69,9 +74,12 @@ export const createLocalFunctionsPlugin = ({
           return;
         }
 
+        let useSearchGrounding = false;
+
         try {
           const body = await readJsonBody(request);
           const claim = typeof body.claim === "string" ? body.claim : "";
+          useSearchGrounding = allowSearchGrounding && body.useSearchGrounding === true;
 
           if (!claim.trim()) {
             sendJson(response, 400, { error: "Claim is required.", requestId });
@@ -81,12 +89,16 @@ export const createLocalFunctionsPlugin = ({
           logInfo("check_claim_started", {
             requestId,
             claimLength: claim.length,
+            model,
+            useSearchGrounding,
             runtime: "vite-dev",
           });
 
           const result = await checkClaimWithGeminiServer({
             apiKey,
             claim,
+            model,
+            useSearchGrounding,
           });
 
           logInfo("check_claim_completed", {
@@ -97,15 +109,20 @@ export const createLocalFunctionsPlugin = ({
 
           sendJson(response, 200, { ...result, requestId });
         } catch (error) {
+          const publicError = toPublicGeminiError(error, model);
           logError("check_claim_failed", {
             requestId,
             durationMs: Date.now() - startedAt,
+            model,
+            useSearchGrounding,
+            publicError: publicError.payload,
             runtime: "vite-dev",
             error,
           });
 
-          sendJson(response, 500, {
-            error: "Fact check failed. Please try again later.",
+          sendJson(response, publicError.statusCode, {
+            ...publicError.payload,
+            useSearchGrounding,
             requestId,
           });
         }

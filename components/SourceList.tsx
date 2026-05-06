@@ -24,32 +24,31 @@ const SourceList: React.FC<SourceListProps> = ({ sources, type }) => {
       </h3>
       <div className="space-y-3">
         {sources.slice(0, 3).map((source, index) => {
-           // Fallback to Google Search if URL is missing or internal
            const isValidUrl = source.url && source.url.startsWith('http') && !source.url.includes('grounding.google');
-           const href = isValidUrl 
-                ? source.url 
+           const href = isValidUrl
+                ? source.url
                 : `https://www.google.com/search?q=${encodeURIComponent(source.title)}`;
             
            return (
             <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-                <a 
-                href={href} 
-                target="_blank" 
+                <a
+                href={href}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="group"
                 >
                 <div className="font-semibold text-gray-800 group-hover:text-purple-600 transition-colors flex items-start justify-between">
                     <span className="line-clamp-2 leading-tight">{source.title || 'Unknown Source'}</span>
                     {isValidUrl ? (
-                         <ExternalLink className="w-4 h-4 ml-2 flex-shrink-0 text-gray-400 group-hover:text-purple-500" />
+                        <ExternalLink className="w-4 h-4 ml-2 flex-shrink-0 text-gray-400 group-hover:text-purple-500" />
                     ) : (
-                         <Search className="w-4 h-4 ml-2 flex-shrink-0 text-gray-400 group-hover:text-purple-500" />
+                        <Search className="w-4 h-4 ml-2 flex-shrink-0 text-gray-400 group-hover:text-purple-500" />
                     )}
                 </div>
                 {isValidUrl ? (
                     <div className="text-xs text-gray-400 mt-1 truncate">{new URL(source.url).hostname}</div>
                 ) : (
-                    <div className="text-xs text-gray-400 mt-1 italic">Search on Google</div>
+                    <div className="text-xs text-gray-400 mt-1">Learn more</div>
                 )}
                 </a>
                 <div className="mt-2 text-xs font-medium text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded">

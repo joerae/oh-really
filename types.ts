@@ -22,6 +22,9 @@ export interface GroundingChunk {
 }
 
 export interface AnalysisResponse {
+  model?: string;
+  requestId?: string;
+  useSearchGrounding?: boolean;
   structuredResult: FactCheckResult | null;
   rawGroundingChunks: GroundingChunk[];
 }

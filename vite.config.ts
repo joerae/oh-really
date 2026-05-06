@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
       react(),
       createLocalFunctionsPlugin({
         apiKey: env.GEMINI_API_KEY || process.env.GEMINI_API_KEY,
+        model: env.GEMINI_MODEL || process.env.GEMINI_MODEL,
+        allowSearchGrounding:
+          env.ENABLE_SEARCH_GROUNDING === "true" ||
+          env.VITE_ENABLE_SEARCH_GROUNDING === "true" ||
+          process.env.ENABLE_SEARCH_GROUNDING === "true" ||
+          process.env.VITE_ENABLE_SEARCH_GROUNDING === "true",
       }),
     ],
     resolve: {

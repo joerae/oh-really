@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
-import { checkClaim } from './services/geminiService';
+import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { checkClaim, FactCheckRequestError } from './services/geminiService';
 import { AnalysisResponse } from './types';
 import ResultCard from './components/ResultCard';
+
+interface DisplayError {
+  message: string;
+  detail?: string;
+  model?: string;
+  providerCode?: number;
+  providerStatus?: string;
+  requestId?: string;
+  status?: number;
+}
+
+const enableSearchGrounding = import.meta.env.VITE_ENABLE_SEARCH_GROUNDING === 'true';
 
 const App: React.FC = () => {
   const [claim, setClaim] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DisplayError | null>(null);
   const [progress, setProgress] = useState(0);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [useSearchGrounding, setUseSearchGrounding] = useState(false);
 
   // Version history data
   const versions = [
@@ -20,6 +33,8 @@ const App: React.FC = () => {
     { version: '1.3', desc: 'Added 60s progress bar for deep research' },
     { version: '1.4', desc: 'Redesigned skepticism meter and result layout' },
     { version: '1.5', desc: 'Added footer credits and version tracker' },
+    { version: '1.6', desc: 'Defaulted Search grounding off, exposed Gemini errors, and tightened evidence links' },
+    { version: '1.7', desc: 'Hid Search grounding behind a feature flag and restored Learn more evidence searches' },
   ];
 
   const handleCheck = async (e: React.FormEvent) => {
@@ -32,10 +47,26 @@ const App: React.FC = () => {
     setProgress(0);
 
     try {
-      const data = await checkClaim(claim);
+      const data = await checkClaim(claim, {
+        useSearchGrounding: enableSearchGrounding && useSearchGrounding,
+      });
       setResult(data);
     } catch (err) {
-      setError("Oops! My research brain got a bit scrambled. Please try again.");
+      if (err instanceof FactCheckRequestError) {
+        setError({
+          message: err.message,
+          detail: err.detail,
+          model: err.model,
+          providerCode: err.providerCode,
+          providerStatus: err.providerStatus,
+          requestId: err.requestId,
+          status: err.status,
+        });
+      } else {
+        setError({
+          message: err instanceof Error ? err.message : "Fact check failed.",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -152,6 +183,19 @@ const App: React.FC = () => {
             </div>
           </form>
 
+          {enableSearchGrounding && (
+            <label className="mt-4 max-w-2xl mx-auto w-full flex items-center gap-3 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={useSearchGrounding}
+                onChange={(e) => setUseSearchGrounding(e.target.checked)}
+                disabled={loading}
+                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <span>Use Google Search grounding</span>
+            </label>
+          )}
+
           {loading && (
             <div className="mt-8 max-w-xl mx-auto text-center space-y-3 animate-fade-in">
               <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
@@ -177,7 +221,38 @@ const App: React.FC = () => {
             <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">Error</p>
-              <p>{error}</p>
+              <p>{error.message}</p>
+              {error.detail && (
+                <p className="mt-2 text-sm text-red-700">{error.detail}</p>
+              )}
+              <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-red-700">
+                {error.model && (
+                  <>
+                    <dt className="font-semibold">Model</dt>
+                    <dd className="font-mono break-all">{error.model}</dd>
+                  </>
+                )}
+                {(error.providerStatus || error.providerCode) && (
+                  <>
+                    <dt className="font-semibold">Gemini status</dt>
+                    <dd className="font-mono">
+                      {[error.providerStatus, error.providerCode].filter(Boolean).join(" ")}
+                    </dd>
+                  </>
+                )}
+                {error.status && (
+                  <>
+                    <dt className="font-semibold">HTTP status</dt>
+                    <dd className="font-mono">{error.status}</dd>
+                  </>
+                )}
+                {error.requestId && (
+                  <>
+                    <dt className="font-semibold">Request ID</dt>
+                    <dd className="font-mono break-all">{error.requestId}</dd>
+                  </>
+                )}
+              </dl>
             </div>
           </div>
         )}
@@ -191,7 +266,7 @@ const App: React.FC = () => {
       {/* Footer */}
       <footer className="py-8 text-center text-gray-500 text-sm border-t border-gray-200 mt-auto bg-white/80 backdrop-blur-sm">
         <p className="font-semibold mb-1 text-gray-700">Made by John Raeburns VII and IX, 2025</p>
-        <p className="text-xs text-gray-400 mb-4">Powered by Gemini 2.5 & Google Search Grounding</p>
+        <p className="text-xs text-gray-400 mb-4">Powered by Gemini Flash</p>
         
         <div className="flex flex-col items-center">
             <button 
