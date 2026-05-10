@@ -9,7 +9,7 @@ Gemini calls run server-side through Netlify Functions in production and through
 - Claim checking UI with a skepticism score from 0 to 95.
 - Playful verdict titles and short evidence summaries.
 - Separate supporting and contradicting source lists.
-- Optional Google Search grounding behind an environment flag.
+- Optional Google Search grounding behind environment flags for deployments with access to the paid grounding capability.
 - Server-side prompt in `server/factCheckPrompt.ts` for easier editing and review.
 - Structured error responses with request IDs and provider details.
 - Local Vite development routes that mirror Netlify Function paths.
@@ -70,7 +70,9 @@ ENABLE_SEARCH_GROUNDING=false
 VITE_ENABLE_SEARCH_GROUNDING=false
 ```
 
-`GEMINI_MODEL` controls the model used by the fact-check endpoint. `ENABLE_SEARCH_GROUNDING` allows the server to use Google Search grounding. `VITE_ENABLE_SEARCH_GROUNDING` exposes the UI toggle in the browser. Both search flags must be enabled for a user-selected grounded check to run.
+`GEMINI_MODEL` controls the model used by the fact-check endpoint. `ENABLE_SEARCH_GROUNDING` allows the server to use Google Search grounding if the configured Gemini API key has access to that paid capability. `VITE_ENABLE_SEARCH_GROUNDING` exposes the UI toggle in the browser. Both search flags must be enabled for a user-selected grounded check to run.
+
+When Search grounding is disabled, the app uses Gemini's model knowledge and reasoning only. It does not present invented source links or page titles.
 
 Do not create `VITE_GEMINI_API_KEY`. Any variable prefixed with `VITE_` can be exposed to browser code.
 

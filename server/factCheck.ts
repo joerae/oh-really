@@ -78,6 +78,7 @@ const parseStructuredResult = (text: string): FactCheckResult | null => {
 const attachGroundingUrls = (
   structuredResult: FactCheckResult | null,
   groundingChunks: GroundingChunk[],
+  useSearchGrounding: boolean,
 ) => {
   if (!structuredResult) return;
 
@@ -85,6 +86,12 @@ const attachGroundingUrls = (
     95,
     Math.max(0, Number(structuredResult.skepticismScore) || 0),
   );
+
+  if (!useSearchGrounding) {
+    structuredResult.supportingSources = [];
+    structuredResult.contradictingSources = [];
+    return;
+  }
 
   const resolveUrl = (sourceTitle: string) => {
     const cleanSourceTitle = normalizeTitle(sourceTitle);
@@ -149,7 +156,7 @@ export const checkClaimWithGeminiServer = async ({
     []) as GroundingChunk[];
   const structuredResult = parseStructuredResult(text);
 
-  attachGroundingUrls(structuredResult, groundingChunks);
+  attachGroundingUrls(structuredResult, groundingChunks, useSearchGrounding);
 
   return {
     model: modelName,

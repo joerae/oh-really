@@ -36,6 +36,7 @@ const App: React.FC = () => {
     { version: '1.6', desc: 'Defaulted Search grounding off, exposed Gemini errors, and tightened evidence links' },
     { version: '1.7', desc: 'Hid Search grounding behind a feature flag and restored Learn more evidence searches' },
     { version: '1.8', desc: 'Separated and refined the fact-check prompt for clearer evidence sourcing' },
+    { version: '1.9', desc: 'Optimized fact checks for non-grounded Gemini responses and removed invented sources' },
   ];
 
   const handleCheck = async (e: React.FormEvent) => {
