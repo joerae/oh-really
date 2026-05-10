@@ -1,19 +1,40 @@
-# AI Studio to Netlify Template
+# Oh Really???
 
-This is a copyable base project for turning a Google AI Studio React app into a standalone Netlify app.
+Oh Really??? is a React/Vite fact-checking app backed by Gemini. Users enter a claim, the app asks Gemini for a structured skepticism assessment, and the UI displays a score, verdict summary, supporting analysis, contradicting analysis, and source links when available.
 
-It keeps Gemini calls server-side, gives local Vite development the same `/.netlify/functions/...` API path as production, and includes simple structured logging for browser and function failures.
+Gemini calls run server-side through Netlify Functions in production and through a Vite middleware shim during local development. Browser code never receives the Gemini API key.
 
-## Use As A New Project
+## Features
+
+- Claim checking UI with a skepticism score from 0 to 95.
+- Playful verdict titles and short evidence summaries.
+- Separate supporting and contradicting source lists.
+- Optional Google Search grounding behind an environment flag.
+- Server-side prompt in `server/factCheckPrompt.ts` for easier editing and review.
+- Structured error responses with request IDs and provider details.
+- Local Vite development routes that mirror Netlify Function paths.
+
+## Local Setup
+
+Install dependencies:
 
 ```powershell
-cd ai-studio-netlify-template
 npm.cmd install
-Copy-Item .env.example .env.local
-npm.cmd run dev
 ```
 
-Set `GEMINI_API_KEY` in `.env.local` before calling Gemini locally.
+Create local environment variables:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Set `GEMINI_API_KEY` in `.env.local`.
+
+Run the app:
+
+```powershell
+npm.cmd run dev
+```
 
 Open:
 
@@ -21,55 +42,115 @@ Open:
 http://localhost:3000/
 ```
 
-If you are using Command Prompt instead of PowerShell, `npm install` and `npm run dev` are fine.
+## Windows Command Note
+
+On this machine, PowerShell may block `npm` because it tries to execute `npm.ps1` and the execution policy rejects scripts. Use `npm.cmd` from PowerShell instead:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+npm.cmd run build
+```
+
+In Command Prompt, the normal `npm install`, `npm run dev`, and `npm run build` commands should work. This belongs in the README because it affects normal project setup; an `AGENTS.md` would be better for instructions that only automation tools should follow.
+
+## Environment Variables
+
+Required:
+
+```text
+GEMINI_API_KEY=replace-with-your-gemini-api-key
+```
+
+Optional:
+
+```text
+GEMINI_MODEL=gemini-3-flash-preview
+ENABLE_SEARCH_GROUNDING=false
+VITE_ENABLE_SEARCH_GROUNDING=false
+```
+
+`GEMINI_MODEL` controls the model used by the fact-check endpoint. `ENABLE_SEARCH_GROUNDING` allows the server to use Google Search grounding. `VITE_ENABLE_SEARCH_GROUNDING` exposes the UI toggle in the browser. Both search flags must be enabled for a user-selected grounded check to run.
+
+Do not create `VITE_GEMINI_API_KEY`. Any variable prefixed with `VITE_` can be exposed to browser code.
+
+## Scripts
+
+```powershell
+npm.cmd run dev
+npm.cmd run build
+npm.cmd run preview
+```
+
+- `dev`: starts Vite on port 3000 with local Netlify Function emulation.
+- `build`: creates the production bundle in `dist`.
+- `preview`: previews the built Vite app.
 
 ## Deploy On Netlify
 
-1. Push this folder as its own GitHub repository, or copy it into a new repo.
-2. Create a Netlify site from that repository.
-3. Use the default build settings from `netlify.toml`.
-4. Add an environment variable named `GEMINI_API_KEY`.
-5. Make sure the variable is available to Functions and marked as secret.
+1. Push this repository to GitHub.
+2. Create a Netlify site from the repository.
+3. Use the build settings from `netlify.toml`.
+4. Add `GEMINI_API_KEY` as a secret environment variable.
+5. Optionally add `GEMINI_MODEL`, `ENABLE_SEARCH_GROUNDING`, and `VITE_ENABLE_SEARCH_GROUNDING`.
 
-Do not create `VITE_GEMINI_API_KEY`. Anything prefixed with `VITE_` can be exposed to browser code.
+Netlify settings:
 
-## Port An AI Studio App
+```text
+Build command: npm run build
+Publish directory: dist
+Functions directory: netlify/functions
+```
 
-1. Copy the AI Studio app files into this project, usually starting with `App.tsx`, `components/`, `data/`, and `types.ts`.
-2. Keep `index.tsx` unless the app has custom root setup. It already installs global error handlers.
-3. Remove the AI Studio import map from `index.html`; dependencies should come from `package.json`.
-4. Add any packages used by the app to `package.json`, then run `npm.cmd install`.
-5. Move direct `@google/genai` browser calls into `server/gemini.ts` or a new server helper.
-6. Expose that server helper through `netlify/functions`.
-7. Call the function from browser services with `fetch("/.netlify/functions/name")`.
-8. Add the matching local route in `server/localFunctionsPlugin.ts` so Vite development behaves like Netlify.
+## Project Map
 
-The included sample endpoint is:
+- `App.tsx`: main React UI and version history.
+- `components/`: result cards, skepticism meter, and source list UI.
+- `services/geminiService.ts`: browser client for the fact-check endpoint.
+- `services/apiClient.ts`: browser client for the generic generation endpoint.
+- `server/factCheck.ts`: server-side fact-check orchestration and source URL handling.
+- `server/factCheckPrompt.ts`: editable Gemini fact-check prompt.
+- `server/gemini.ts`: generic server-side Gemini generation helper.
+- `server/localFunctionsPlugin.ts`: Vite middleware that mirrors Netlify Functions locally.
+- `server/logger.ts`: structured logging and basic redaction.
+- `netlify/functions/check-claim.ts`: production fact-check endpoint.
+- `netlify/functions/generate.ts`: production generic generation endpoint.
+- `netlify/functions/log-error.ts`: production client-error logging endpoint.
+- `types.ts`: shared response and source types.
+
+## API Routes
+
+Fact checking:
+
+```text
+POST /.netlify/functions/check-claim
+```
+
+Request body:
+
+```json
+{
+  "claim": "Do octopuses have three hearts?",
+  "useSearchGrounding": false
+}
+```
+
+Generic Gemini generation:
 
 ```text
 POST /.netlify/functions/generate
 ```
 
-Client code for it lives in `services/apiClient.ts`, Netlify production code lives in `netlify/functions/generate.ts`, and the local development equivalent lives in `server/localFunctionsPlugin.ts`.
+Client error logging:
 
-## File Map
+```text
+POST /.netlify/functions/log-error
+```
 
-- `App.tsx`: replaceable sample React UI.
-- `services/apiClient.ts`: browser-side function caller.
-- `services/errorLogger.ts`: browser error reporting.
-- `server/gemini.ts`: server-only Gemini helper.
-- `server/localFunctionsPlugin.ts`: Vite middleware that emulates Netlify Functions locally.
-- `server/logger.ts`: structured JSON logs with basic secret redaction.
-- `netlify/functions/generate.ts`: production Gemini function.
-- `netlify/functions/log-error.ts`: production client-error logging function.
-- `netlify.toml`: Netlify build and function configuration.
+## Development Notes
 
-## Notes
+Run the app with Vite. Do not open `index.html` directly because the app expects Vite and the local function middleware.
 
-Run the app with Vite. Do not open `index.html` directly and do not use a static file server for development.
+The fact-check prompt is intentionally kept in `server/factCheckPrompt.ts` so prompt changes are visible in diffs. When changing response shape, update `types.ts`, `components/ResultCard.tsx`, and any server parsing/normalization code together.
 
-This template leaves the Tailwind CDN in `index.html` because AI Studio exports often use Tailwind utility classes. If a future app needs a stricter production CSS pipeline, replace it with a normal Tailwind/PostCSS setup.
-
-## Version Tracker Convention
-
-When making a significant user-facing behavior, UI, API, or deployment change, bump the in-app version tracker in `App.tsx` and add a short note describing the change.
+When making a significant user-facing behavior, UI, API, or deployment change, update the in-app version tracker in `App.tsx` with a short note.

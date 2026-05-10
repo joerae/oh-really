@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import type { AnalysisResponse, FactCheckResult, GroundingChunk } from "../types";
+import type { AnalysisResponse, FactCheckResult, GroundingChunk, Source } from "../types";
+import { buildFactCheckPrompt } from "./factCheckPrompt";
 
 interface ServerFactCheckRequest {
   apiKey?: string;
@@ -9,64 +10,6 @@ interface ServerFactCheckRequest {
 }
 
 export const DEFAULT_FACT_CHECK_MODEL = "gemini-3-flash-preview";
-
-const buildPrompt = (claim: string, useSearchGrounding: boolean) => `
-You are "Oh Really???", a playful, smart, and skeptical fact-checking assistant.
-
-CRITICAL INSTRUCTION ON INTERPRETATION:
-Before researching, interpret the user's claim charitably and in the most logical context.
-Do not be pedantic or literal-minded if the user uses colloquialisms or loose phrasing.
-
-Example:
-User: "The brain stops at 83."
-Bad Interpretation: "The human brain ceases biological function and the person dies at 83."
-Good Interpretation: "The user likely means a specific phase of brain development or growth ends at age 83."
-
-ALWAYS fact-check the intended, most reasonable version of the claim.
-
-Your goal is to verify the following claim: "${claim}".
-
-Step 1: ${
-  useSearchGrounding
-    ? "Use Google Search to find information about this claim. Look for reputable sources that support it and reputable sources that contradict it."
-    : "Use your model knowledge to assess this claim. If the claim depends on recent events or exact current facts, say that live search is needed for high confidence."
-}
-Step 2: Assess the credibility of these sources.
-Step 3: Assign a "Skepticism Score" from 0 to 95.
-- 0 means "Totally True / Verified Fact".
-- 50 means "Debatable / Mixed Evidence / Context Missing".
-- 95 means "Complete Hogwash / False".
-- IMPORTANT: NEVER return a score higher than 95. We never want to be 100% certain of falsehood.
-Step 4: Formulate a playful verdict title.
-
-Output ONLY a valid JSON object wrapped in a markdown code block (\`\`\`json ... \`\`\`).
-The JSON must match this structure:
-{
-  "skepticismScore": number,
-  "verdictTitle": string,
-  "verdictSummary": "A 1-2 sentence high-level summary of the verdict.",
-  "supportingAnalysis": "A short, distinct paragraph explaining evidence that supports the claim or why someone might think it is true.",
-  "contradictingAnalysis": "A short, distinct paragraph explaining evidence that contradicts the claim or adds missing context.",
-  "supportingSources": [
-    { "title": "Exact Page Title from Search Result", "url": "", "trustworthiness": "High/Medium/Low - reason" }
-  ],
-  "contradictingSources": [
-    { "title": "Exact Page Title from Search Result", "url": "", "trustworthiness": "High/Medium/Low - reason" }
-  ]
-}
-
-IMPORTANT FOR SOURCES:
-- ${
-  useSearchGrounding
-    ? 'Leave the "url" field empty in the JSON. The server will match your selected titles to the actual links.'
-    : 'Leave the "url" field empty in the JSON because live search grounding is disabled.'
-}
-- ${
-  useSearchGrounding
-    ? "Ensure you copy the title EXACTLY as it appears in the search tool output so the server can find the correct link."
-    : "Do not invent source URLs. Keep source titles general if you are relying on model knowledge rather than retrieved pages."
-}
-`;
 
 const normalizeTitle = (title: string) =>
   title
@@ -92,6 +35,29 @@ const getTitleTokens = (title: string) => {
   return normalizeTitle(title)
     .split(" ")
     .filter(token => token.length > 3 && !stopWords.has(token));
+};
+
+const getSourceDomain = (source: Source) => {
+  if (!source.url) return "";
+
+  try {
+    return new URL(source.url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
+const sourceMatches = (left: Source, right: Source) => {
+  const leftTitle = normalizeTitle(left.title);
+  const rightTitle = normalizeTitle(right.title);
+  const leftDomain = getSourceDomain(left);
+  const rightDomain = getSourceDomain(right);
+
+  return Boolean(
+    (leftTitle && rightTitle && leftTitle === rightTitle) ||
+      (left.url && right.url && left.url === right.url) ||
+      (leftDomain && rightDomain && leftDomain === rightDomain),
+  );
 };
 
 const parseStructuredResult = (text: string): FactCheckResult | null => {
@@ -144,6 +110,13 @@ const attachGroundingUrls = (
   structuredResult.contradictingSources?.forEach(source => {
     source.url = resolveUrl(source.title);
   });
+
+  structuredResult.contradictingSources = (structuredResult.contradictingSources || []).filter(
+    contradictingSource =>
+      !(structuredResult.supportingSources || []).some(supportingSource =>
+        sourceMatches(supportingSource, contradictingSource),
+      ),
+  );
 };
 
 export const checkClaimWithGeminiServer = async ({
@@ -164,7 +137,7 @@ export const checkClaimWithGeminiServer = async ({
   const modelName = model.trim() || DEFAULT_FACT_CHECK_MODEL;
   const response = await ai.models.generateContent({
     model: modelName,
-    contents: buildPrompt(claim, useSearchGrounding),
+    contents: buildFactCheckPrompt(claim, useSearchGrounding),
     config: {
       tools: useSearchGrounding ? [{ googleSearch: {} }] : undefined,
       temperature: 0.3,

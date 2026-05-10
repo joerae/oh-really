@@ -35,6 +35,7 @@ const App: React.FC = () => {
     { version: '1.5', desc: 'Added footer credits and version tracker' },
     { version: '1.6', desc: 'Defaulted Search grounding off, exposed Gemini errors, and tightened evidence links' },
     { version: '1.7', desc: 'Hid Search grounding behind a feature flag and restored Learn more evidence searches' },
+    { version: '1.8', desc: 'Separated and refined the fact-check prompt for clearer evidence sourcing' },
   ];
 
   const handleCheck = async (e: React.FormEvent) => {
