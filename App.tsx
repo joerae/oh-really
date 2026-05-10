@@ -3,6 +3,7 @@ import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { checkClaim, FactCheckRequestError } from './services/geminiService';
 import { AnalysisResponse } from './types';
 import ResultCard from './components/ResultCard';
+import { versionHistory } from './versionHistory';
 
 interface DisplayError {
   message: string;
@@ -16,6 +17,14 @@ interface DisplayError {
 
 const enableSearchGrounding = import.meta.env.VITE_ENABLE_SEARCH_GROUNDING === 'true';
 
+const suggestedClaims = [
+  "Do octopuses actually have three hearts?",
+  "Can lightning strike the same place twice?",
+  "Does cracking your knuckles cause arthritis?",
+  "Is the Great Wall of China visible from space?",
+  "Do humans only use 10% of their brains?",
+];
+
 const App: React.FC = () => {
   const [claim, setClaim] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,20 +33,6 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [useSearchGrounding, setUseSearchGrounding] = useState(false);
-
-  // Version history data
-  const versions = [
-    { version: '1.0', desc: 'Initial release of Oh Really???' },
-    { version: '1.1', desc: 'Added charitable interpretation to claim analysis' },
-    { version: '1.2', desc: 'Implemented clickable source links and fallback search' },
-    { version: '1.3', desc: 'Added 60s progress bar for deep research' },
-    { version: '1.4', desc: 'Redesigned skepticism meter and result layout' },
-    { version: '1.5', desc: 'Added footer credits and version tracker' },
-    { version: '1.6', desc: 'Defaulted Search grounding off, exposed Gemini errors, and tightened evidence links' },
-    { version: '1.7', desc: 'Hid Search grounding behind a feature flag and restored Learn more evidence searches' },
-    { version: '1.8', desc: 'Separated and refined the fact-check prompt for clearer evidence sourcing' },
-    { version: '1.9', desc: 'Optimized fact checks for non-grounded Gemini responses and removed invented sources' },
-  ];
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,13 +70,13 @@ const App: React.FC = () => {
   };
 
   const loadingMessages = [
-    "Rumaging through the internet...",
-    "Interrogating search engines...",
+    "Rummaging through the evidence...",
+    "Testing the claim from a few angles...",
     "Putting on my reading glasses...",
     "Fact-checking at light speed...",
     "Separating truth from fiction...",
-    "Consulting the archives of knowledge...",
-    "Double-checking the sources...",
+    "Checking for missing context...",
+    "Looking for the boring-but-important caveats...",
     "Analyzing context and nuance..."
   ];
   const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
@@ -185,6 +180,29 @@ const App: React.FC = () => {
             </div>
           </form>
 
+          {!result && !loading && (
+            <div className="mt-5 max-w-2xl mx-auto w-full animate-fade-in">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">
+                Try a suggested check
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {suggestedClaims.map((suggestedClaim) => (
+                  <button
+                    key={suggestedClaim}
+                    type="button"
+                    onClick={() => {
+                      setClaim(suggestedClaim);
+                      setError(null);
+                    }}
+                    className="max-w-full px-3 py-2 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg transition-colors break-words"
+                  >
+                    {suggestedClaim}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {enableSearchGrounding && (
             <label className="mt-4 max-w-2xl mx-auto w-full flex items-center gap-3 text-sm font-semibold text-gray-600">
               <input
@@ -199,7 +217,7 @@ const App: React.FC = () => {
           )}
 
           {loading && (
-            <div className="mt-8 max-w-xl mx-auto text-center space-y-3 animate-fade-in">
+            <div className="mt-8 w-full max-w-xl mx-auto text-center space-y-3 animate-fade-in">
               <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
                 <div 
                   className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-linear"
@@ -210,8 +228,8 @@ const App: React.FC = () => {
                 <span>Researching...</span>
                 <span>{Math.floor(progress)}%</span>
               </div>
-              <div className="h-6 overflow-hidden">
-                <p className="text-gray-500 italic text-sm">{loadingMsg}</p>
+              <div className="h-6 w-full overflow-hidden">
+                <p className="block w-full truncate text-gray-500 italic text-sm">{loadingMsg}</p>
               </div>
             </div>
           )}
@@ -282,7 +300,7 @@ const App: React.FC = () => {
                 <div className="w-full max-w-md bg-white border border-gray-100 rounded-xl shadow-lg p-5 text-left mx-4 transform transition-all duration-300 ease-out">
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">Update Log</h4>
                     <div className="space-y-3">
-                        {[...versions].reverse().map((ver, idx) => (
+                        {[...versionHistory].reverse().map((ver, idx) => (
                             <div key={idx} className="flex gap-3 text-xs items-start">
                                 <span className="font-mono font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded shrink-0">v{ver.version}</span>
                                 <span className="text-gray-600 leading-tight py-0.5">{ver.desc}</span>
