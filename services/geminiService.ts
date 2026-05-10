@@ -43,13 +43,22 @@ export const checkClaim = async (
   claim: string,
   { useSearchGrounding }: CheckClaimOptions,
 ): Promise<AnalysisResponse> => {
-  const response = await fetch("/.netlify/functions/check-claim", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ claim, useSearchGrounding }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("/.netlify/functions/check-claim", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ claim, useSearchGrounding }),
+    });
+  } catch (error) {
+    throw new FactCheckRequestError("The fact-check API did not respond.", {
+      detail:
+        "The local dev server, Netlify Function, or network connection may be unavailable. If the function is running, the Gemini API key may also be out of quota or temporarily unable to answer.",
+      status: 0,
+    });
+  }
 
   let payload: Partial<AnalysisResponse> & CheckClaimErrorResponse = {};
   try {
@@ -66,6 +75,16 @@ export const checkClaim = async (
       providerStatus: payload.providerStatus,
       requestId: payload.requestId,
       retryable: payload.retryable,
+      status: response.status,
+    });
+  }
+
+  if (!payload.structuredResult && !Array.isArray(payload.rawGroundingChunks)) {
+    throw new FactCheckRequestError("The fact-check API returned an empty response.", {
+      detail:
+        "This can happen when the Gemini API does not return usable content. The API key may be out of credits, rate-limited, or temporarily unavailable.",
+      model: payload.model,
+      requestId: payload.requestId,
       status: response.status,
     });
   }

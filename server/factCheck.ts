@@ -173,6 +173,10 @@ export const checkClaimWithGeminiServer = async ({
   });
 
   const text = response.text || "";
+  if (!text.trim()) {
+    throw new Error("Gemini returned an empty response.");
+  }
+
   const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks ||
     []) as GroundingChunk[];
   const structuredResult = parseStructuredResult(text);

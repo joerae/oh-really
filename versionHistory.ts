@@ -20,4 +20,5 @@ export const versionHistory: VersionHistoryEntry[] = [
   { version: '1.13', desc: 'Restored model-suggested search leads for non-grounded fact checks' },
   { version: '1.14', desc: 'Simplified search lead cards and hid opposite-side leads at score extremes' },
   { version: '1.15', desc: 'Improved analysis readability with paragraph-aware rendering' },
+  { version: '1.16', desc: 'Clarified quota, unavailable API, and no-response errors' },
 ];

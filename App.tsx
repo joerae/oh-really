@@ -12,6 +12,7 @@ interface DisplayError {
   providerCode?: number;
   providerStatus?: string;
   requestId?: string;
+  retryable?: boolean;
   status?: number;
 }
 
@@ -60,6 +61,7 @@ const App: React.FC = () => {
           providerCode: err.providerCode,
           providerStatus: err.providerStatus,
           requestId: err.requestId,
+          retryable: err.retryable,
           status: err.status,
         });
       } else {
@@ -243,10 +245,15 @@ const App: React.FC = () => {
           <div className="max-w-2xl mx-auto mb-8 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-800 animate-fade-in">
             <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Error</p>
+              <p className="font-bold">Fact check unavailable</p>
               <p>{error.message}</p>
               {error.detail && (
                 <p className="mt-2 text-sm text-red-700">{error.detail}</p>
+              )}
+              {error.retryable && (
+                <p className="mt-2 text-sm font-semibold text-red-700">
+                  This may clear if you wait and try again, but quota/free-credit issues usually need a different key or billing/quota change.
+                </p>
               )}
               <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-red-700">
                 {error.model && (

@@ -108,7 +108,7 @@ Functions directory: netlify/functions
 
 - `App.tsx`: main React UI.
 - `versionHistory.ts`: in-app version history entries.
-- `CODEDECISIONS.md`: rationale for significant architecture, prompt, deployment, and behavior decisions.
+- `CODEDECISIONS.md`: rationale for major architecture, prompt ownership, API, deployment, and security decisions.
 - `components/`: result cards, skepticism meter, and source list UI.
 - `services/geminiService.ts`: browser client for the fact-check endpoint.
 - `services/apiClient.ts`: browser client for the generic generation endpoint.
@@ -159,4 +159,4 @@ The fact-check prompt is intentionally kept in `server/factCheckPrompt.ts` so pr
 
 When making a significant user-facing behavior, UI, API, prompt, or deployment change, update the in-app version tracker in `versionHistory.ts` with a short note.
 
-When making a significant code decision, add an entry to `CODEDECISIONS.md` explaining what changed and why. This is especially important for decisions involving prompts, API boundaries, environment variables, deployment behavior, security, or data shown to users.
+When making a major project-level code decision, add an entry to `CODEDECISIONS.md` explaining what changed and why. Use it for durable architecture, primary data flow, prompt ownership, API boundaries, environment variables, deployment behavior, and security decisions. Do not add routine UI polish, copy tweaks, or ordinary error-message changes there.
