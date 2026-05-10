@@ -87,9 +87,30 @@ const attachGroundingUrls = (
     Math.max(0, Number(structuredResult.skepticismScore) || 0),
   );
 
-  if (!useSearchGrounding) {
-    structuredResult.supportingSources = [];
+  if (structuredResult.skepticismScore === 0) {
     structuredResult.contradictingSources = [];
+  }
+
+  if (structuredResult.skepticismScore === 95) {
+    structuredResult.supportingSources = [];
+  }
+
+  if (!useSearchGrounding) {
+    structuredResult.supportingSources = (structuredResult.supportingSources || []).map(source => ({
+      ...source,
+      url: "",
+    }));
+    structuredResult.contradictingSources = (structuredResult.contradictingSources || []).map(source => ({
+      ...source,
+      url: "",
+    }));
+
+    structuredResult.contradictingSources = structuredResult.contradictingSources.filter(
+      contradictingSource =>
+        !structuredResult.supportingSources.some(supportingSource =>
+          sourceMatches(supportingSource, contradictingSource),
+        ),
+    );
     return;
   }
 

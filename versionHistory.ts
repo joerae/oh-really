@@ -16,4 +16,8 @@ export const versionHistory: VersionHistoryEntry[] = [
   { version: '1.9', desc: 'Optimized fact checks for non-grounded Gemini responses and removed invented sources' },
   { version: '1.10', desc: 'Added suggested claims and stabilized the loading progress layout' },
   { version: '1.11', desc: 'Moved version history into its own file and added a code decision log' },
+  { version: '1.12', desc: 'Changed suggested checks into claims and restored follow-up search links' },
+  { version: '1.13', desc: 'Restored model-suggested search leads for non-grounded fact checks' },
+  { version: '1.14', desc: 'Simplified search lead cards and hid opposite-side leads at score extremes' },
+  { version: '1.15', desc: 'Improved analysis readability with paragraph-aware rendering' },
 ];

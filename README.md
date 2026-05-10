@@ -72,7 +72,7 @@ VITE_ENABLE_SEARCH_GROUNDING=false
 
 `GEMINI_MODEL` controls the model used by the fact-check endpoint. `ENABLE_SEARCH_GROUNDING` allows the server to use Google Search grounding if the configured Gemini API key has access to that paid capability. `VITE_ENABLE_SEARCH_GROUNDING` exposes the UI toggle in the browser. Both search flags must be enabled for a user-selected grounded check to run.
 
-When Search grounding is disabled, the app uses Gemini's model knowledge and reasoning only. It does not present invented source links or page titles.
+When Search grounding is disabled, the app uses Gemini's model knowledge and reasoning only. It may show model-suggested search leads, but those are labeled as follow-up searches rather than retrieved sources Gemini analyzed.
 
 Do not create `VITE_GEMINI_API_KEY`. Any variable prefixed with `VITE_` can be exposed to browser code.
 

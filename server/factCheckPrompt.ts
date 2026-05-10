@@ -13,7 +13,7 @@ RESEARCH MODE:
 - Do not claim that you searched, browsed, found pages, read current articles, or verified live sources.
 - Use stable model knowledge, general domain knowledge, and careful reasoning only.
 - For claims about recent events, current prices, current law, live statistics, availability, or exact present-day facts, say that live verification is needed for high confidence.
-- Do not invent source titles, page titles, URLs, or citations. Return empty arrays for "supportingSources" and "contradictingSources".
+- Do not invent URLs or claim that suggested links were retrieved or analyzed.
 `;
 
 const buildSourceInstructions = (useSearchGrounding: boolean) =>
@@ -29,10 +29,16 @@ SOURCE SELECTION RULES:
 - Copy source titles EXACTLY as they appear in the search tool output so the server can find the correct links.
 `
     : `
-SOURCE RULES WITHOUT LIVE SEARCH:
-- Return "supportingSources": [] and "contradictingSources": [].
-- You may mention broad source categories in the analysis, such as official health agencies or peer-reviewed literature, but only when that category is genuinely relevant.
-- Do not fabricate titles such as "CDC page", "Wikipedia", journal article names, news articles, reports, or URLs.
+SEARCH-LEAD RULES WITHOUT LIVE SEARCH:
+- Fill "supportingSources" and "contradictingSources" with useful search leads, not verified retrieved sources.
+- Leave every "url" field empty.
+- Use search-friendly titles that are likely to lead to reputable pages, reports, articles, explainers, official sources, or primary material.
+- Prefer concrete lead titles over generic queries. For example, use "Scientific American 10 percent brain myth" rather than "brain myth evidence".
+- Keep supporting and contradicting leads independent from each other whenever possible.
+- If one side is weak, include fewer leads for that side and explain the weakness in the analysis.
+- If skepticismScore is 0, return an empty "contradictingSources" array.
+- If skepticismScore is 95, return an empty "supportingSources" array.
+- For search leads, keep "trustworthiness" short, such as "Search lead".
 `;
 
 export const buildFactCheckPrompt = (claim: string, useSearchGrounding: boolean) => `
@@ -77,6 +83,7 @@ ANALYSIS RULES:
 - Be clear about uncertainty. Say when the answer depends on definitions, timeframe, location, or live verification.
 - Do not force false balance. If one side is weak, explain that it is weak.
 - Keep the tone playful but do not let jokes replace precision.
+- For "supportingAnalysis" and "contradictingAnalysis", use 2-3 short paragraphs separated by blank lines when the explanation covers multiple distinct ideas. Encode paragraph breaks as \\n\\n inside the JSON strings.
 
 ${buildSourceInstructions(useSearchGrounding)}
 
@@ -86,13 +93,13 @@ The JSON must match this structure:
   "skepticismScore": number,
   "verdictTitle": string,
   "verdictSummary": "A 1-2 sentence high-level summary of the verdict, including uncertainty when relevant.",
-  "supportingAnalysis": "A short, distinct paragraph explaining evidence or reasoning that supports the claim or why someone might think it is true.",
-  "contradictingAnalysis": "A short, distinct paragraph explaining evidence, reasoning, missing context, or uncertainty that contradicts the claim or weakens confidence.",
+  "supportingAnalysis": "A short, distinct explanation of evidence or reasoning that supports the claim or why someone might think it is true. Use \\n\\n paragraph breaks when helpful.",
+  "contradictingAnalysis": "A short, distinct explanation of evidence, reasoning, missing context, or uncertainty that contradicts the claim or weakens confidence. Use \\n\\n paragraph breaks when helpful.",
   "supportingSources": [
-    { "title": "Exact Page Title from Search Result", "url": "", "trustworthiness": "High/Medium/Low - reason" }
+    { "title": "Exact Page Title from Search Result, or search lead when live search is disabled", "url": "", "trustworthiness": "High/Medium/Low - reason" }
   ],
   "contradictingSources": [
-    { "title": "Exact Page Title from Search Result", "url": "", "trustworthiness": "High/Medium/Low - reason" }
+    { "title": "Exact Page Title from Search Result, or search lead when live search is disabled", "url": "", "trustworthiness": "High/Medium/Low - reason" }
   ]
 }
 `;

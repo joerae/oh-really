@@ -18,11 +18,11 @@ interface DisplayError {
 const enableSearchGrounding = import.meta.env.VITE_ENABLE_SEARCH_GROUNDING === 'true';
 
 const suggestedClaims = [
-  "Do octopuses actually have three hearts?",
-  "Can lightning strike the same place twice?",
-  "Does cracking your knuckles cause arthritis?",
-  "Is the Great Wall of China visible from space?",
-  "Do humans only use 10% of their brains?",
+  "Octopuses have three hearts",
+  "Lightning can strike the same place twice",
+  "Cracking your knuckles causes arthritis",
+  "The Great Wall of China is visible from space",
+  "Humans only use 10% of their brains",
 ];
 
 const App: React.FC = () => {
@@ -33,18 +33,21 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [useSearchGrounding, setUseSearchGrounding] = useState(false);
+  const [checkedClaim, setCheckedClaim] = useState('');
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!claim.trim()) return;
+    const claimToCheck = claim.trim();
+    if (!claimToCheck) return;
 
     setLoading(true);
     setError(null);
     setResult(null);
     setProgress(0);
+    setCheckedClaim(claimToCheck);
 
     try {
-      const data = await checkClaim(claim, {
+      const data = await checkClaim(claimToCheck, {
         useSearchGrounding: enableSearchGrounding && useSearchGrounding,
       });
       setResult(data);
@@ -123,7 +126,7 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 py-6 sticky top-0 z-50 bg-opacity-90 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => {setResult(null); setClaim('');}}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => {setResult(null); setClaim(''); setCheckedClaim('');}}>
             <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center shadow-lg transform -rotate-3">
               <span className="text-white font-bold text-xl">?!</span>
             </div>
@@ -279,7 +282,7 @@ const App: React.FC = () => {
 
         {/* Results */}
         {result && (
-          <ResultCard data={result} />
+          <ResultCard data={result} checkedClaim={checkedClaim} />
         )}
       </main>
 

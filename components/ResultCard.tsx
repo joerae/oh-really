@@ -2,13 +2,73 @@ import React from 'react';
 import { AnalysisResponse } from '../types';
 import SkepticismMeter from './SkepticismMeter';
 import SourceList from './SourceList';
-import { Info, ThumbsUp, ThumbsDown, MessageCircle } from 'lucide-react';
+import { Info, ThumbsUp, ThumbsDown, MessageCircle, Search } from 'lucide-react';
 
 interface ResultCardProps {
   data: AnalysisResponse;
+  checkedClaim: string;
 }
 
-const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
+const getGoogleSearchUrl = (query: string) =>
+  `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+
+const buildSuggestedSearches = (claim: string, verdictTitle: string) => {
+  const baseClaim = claim.trim();
+  const cleanVerdict = verdictTitle.replace(/^["']|["']$/g, "").trim();
+
+  return [
+    baseClaim,
+    `${baseClaim} fact check`,
+    `${baseClaim} evidence`,
+    cleanVerdict && cleanVerdict.toLowerCase() !== baseClaim.toLowerCase()
+      ? `${cleanVerdict} fact check`
+      : `${baseClaim} myth`,
+  ]
+    .filter(Boolean)
+    .filter((query, index, queries) => queries.indexOf(query) === index)
+    .slice(0, 4);
+};
+
+const getAnalysisParagraphs = (text: string | undefined, fallback: string) => {
+  const content = (text || fallback).trim();
+  if (!content) return [fallback];
+
+  const explicitParagraphs = content
+    .split(/\n{2,}/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean);
+
+  if (explicitParagraphs.length > 1) {
+    return explicitParagraphs;
+  }
+
+  const normalized = content.replace(/\s+/g, " ");
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+(?=(?:["'])?[A-Z0-9])/)
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
+
+  if (normalized.length < 320 || sentences.length < 3) {
+    return [normalized];
+  }
+
+  const paragraphs: string[] = [];
+  for (let index = 0; index < sentences.length; index += 2) {
+    paragraphs.push(sentences.slice(index, index + 2).join(" "));
+  }
+
+  return paragraphs;
+};
+
+const AnalysisText: React.FC<{ text?: string; fallback: string }> = ({ text, fallback }) => (
+  <div className="text-gray-600 leading-relaxed flex-grow space-y-4">
+    {getAnalysisParagraphs(text, fallback).map((paragraph, index) => (
+      <p key={index}>{paragraph}</p>
+    ))}
+  </div>
+);
+
+const ResultCard: React.FC<ResultCardProps> = ({ data, checkedClaim }) => {
   const { structuredResult, rawGroundingChunks } = data;
 
   if (!structuredResult) {
@@ -29,6 +89,11 @@ const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
       supportingSources, 
       contradictingSources 
   } = structuredResult;
+  const hasCategorizedSources = Boolean(supportingSources?.length || contradictingSources?.length);
+  const hasRawLinks = rawGroundingChunks.some(chunk => chunk.web?.uri);
+  const suggestedSearches = !hasCategorizedSources && !hasRawLinks
+    ? buildSuggestedSearches(checkedClaim, verdictTitle)
+    : [];
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in-up">
@@ -59,9 +124,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 </div>
                 <h3 className="text-xl font-bold text-gray-800">Why it might be true</h3>
             </div>
-            <p className="text-gray-600 leading-relaxed flex-grow">
-                {supportingAnalysis || "No strong evidence found to support this claim."}
-            </p>
+            <AnalysisText
+              text={supportingAnalysis}
+              fallback="No strong evidence found to support this claim."
+            />
           </div>
 
           {/* Contradicting Analysis */}
@@ -72,35 +138,59 @@ const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 </div>
                 <h3 className="text-xl font-bold text-gray-800">Why it's doubtful</h3>
             </div>
-            <p className="text-gray-600 leading-relaxed flex-grow">
-                {contradictingAnalysis || "No strong contradictions found."}
-            </p>
+            <AnalysisText
+              text={contradictingAnalysis}
+              fallback="No strong contradictions found."
+            />
           </div>
       </div>
 
       {/* Sources Section */}
       <div className="flex flex-wrap gap-6">
         {supportingSources && supportingSources.length > 0 && (
-          <SourceList sources={supportingSources} type="supporting" />
+          <SourceList
+            sources={supportingSources}
+            type="supporting"
+            grounded={data.useSearchGrounding === true}
+          />
         )}
         {contradictingSources && contradictingSources.length > 0 && (
-          <SourceList sources={contradictingSources} type="contradicting" />
+          <SourceList
+            sources={contradictingSources}
+            type="contradicting"
+            grounded={data.useSearchGrounding === true}
+          />
         )}
       </div>
 
       {/* Fallback for Empty Sources or Raw Grounding Data Transparency */}
-      {((!supportingSources?.length && !contradictingSources?.length) || rawGroundingChunks.length > 0) && (
+      {(suggestedSearches.length > 0 || hasRawLinks) && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center text-gray-500 mb-3">
                 <Info className="w-4 h-4 mr-2" />
-                <h4 className="text-sm font-semibold uppercase tracking-wider">Research Notes & Raw Links</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-wider">
+                  {hasRawLinks ? 'Research Notes & Raw Links' : 'Suggested Searches'}
+                </h4>
             </div>
-            {(!supportingSources?.length && !contradictingSources?.length) && (
+            {suggestedSearches.length > 0 && (
                 <p className="text-gray-500 text-sm mb-4">
-                    I couldn't categorize specific sites as strictly "supporting" or "contradicting", but here are the sources I analyzed:
+                    Search grounding was off for this check, so these are follow-up searches rather than sources I analyzed.
                 </p>
             )}
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {suggestedSearches.map((query) => (
+                    <li key={query}>
+                        <a
+                            href={getGoogleSearchUrl(query)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-purple-600 hover:underline text-sm"
+                        >
+                            <Search className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{query}</span>
+                        </a>
+                    </li>
+                ))}
                 {rawGroundingChunks.map((chunk, idx) => chunk.web?.uri ? (
                     <li key={idx}>
                         <a 

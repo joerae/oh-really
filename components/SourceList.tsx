@@ -5,9 +5,10 @@ import { ExternalLink, CheckCircle, AlertTriangle, Search } from 'lucide-react';
 interface SourceListProps {
   sources: Source[];
   type: 'supporting' | 'contradicting';
+  grounded?: boolean;
 }
 
-const SourceList: React.FC<SourceListProps> = ({ sources, type }) => {
+const SourceList: React.FC<SourceListProps> = ({ sources, type, grounded = true }) => {
   if (!sources || sources.length === 0) return null;
 
   const isSupporting = type === 'supporting';
@@ -15,12 +16,15 @@ const SourceList: React.FC<SourceListProps> = ({ sources, type }) => {
   const bgColor = isSupporting ? 'bg-green-50' : 'bg-red-50';
   const titleColor = isSupporting ? 'text-green-800' : 'text-red-800';
   const Icon = isSupporting ? CheckCircle : AlertTriangle;
+  const heading = grounded
+    ? isSupporting ? 'Supporting Evidence' : 'Contradicting Evidence'
+    : isSupporting ? 'Supporting Search Leads' : 'Contradicting Search Leads';
 
   return (
     <div className={`flex-1 min-w-[300px] p-4 rounded-xl border-2 ${borderColor} ${bgColor} transition-all hover:shadow-md`}>
       <h3 className={`flex items-center text-lg font-bold mb-4 ${titleColor}`}>
         <Icon className="w-5 h-5 mr-2" />
-        {isSupporting ? 'Supporting Evidence' : 'Contradicting Evidence'}
+        {heading}
       </h3>
       <div className="space-y-3">
         {sources.slice(0, 3).map((source, index) => {
@@ -47,13 +51,13 @@ const SourceList: React.FC<SourceListProps> = ({ sources, type }) => {
                 </div>
                 {isValidUrl ? (
                     <div className="text-xs text-gray-400 mt-1 truncate">{new URL(source.url).hostname}</div>
-                ) : (
-                    <div className="text-xs text-gray-400 mt-1">Learn more</div>
-                )}
+                ) : null}
                 </a>
-                <div className="mt-2 text-xs font-medium text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded">
-                Trustworthiness: {source.trustworthiness}
-                </div>
+                {grounded && (
+                    <div className="mt-2 text-xs font-medium text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded">
+                    Trustworthiness: {source.trustworthiness}
+                    </div>
+                )}
             </div>
         );
         })}
